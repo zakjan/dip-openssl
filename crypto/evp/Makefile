@@ -100,7 +100,11 @@ dclean:
 	mv -f Makefile.new $(MAKEFILE)
 
 clean:
-	rm -f *.o *.obj lib tags core .pure .nfs* *.old *.bak fluff
+	rm -f *.o *.obj lib tags core .pure .nfs* *.old *.bak fluff \
+		caesar/e_caesar.o \
+		caesar/crypto_aead/aes128gcmv1/openssl/encrypt.o \
+		caesar/crypto_aead/aes128gcmv1/openssl/decrypt.o
+
 
 # DO NOT DELETE THIS LINE -- make depend depends on it.
 

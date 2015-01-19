@@ -62,9 +62,9 @@
  * [including the GNU Public Licence.]
  */
 
-#define NUM_NID 958
-#define NUM_SN 951
-#define NUM_LN 951
+#define NUM_NID 959
+#define NUM_SN 952
+#define NUM_LN 952
 #define NUM_OBJ 890
 
 static const unsigned char lvalues[6255]={
@@ -2514,6 +2514,7 @@ static const ASN1_OBJECT nid_objs[NUM_NID]={
 	NID_jurisdictionStateOrProvinceName,11,&(lvalues[6232]),0},
 {"jurisdictionC","jurisdictionCountryName",
 	NID_jurisdictionCountryName,11,&(lvalues[6243]),0},
+{"CAESAR","caesar",NID_caesar,0,NULL,0},
 };
 
 static const unsigned int sn_objs[NUM_SN]={
@@ -2552,6 +2553,7 @@ static const unsigned int sn_objs[NUM_SN]={
 92,	/* "BF-ECB" */
 94,	/* "BF-OFB" */
 14,	/* "C" */
+958,	/* "CAESAR" */
 751,	/* "CAMELLIA-128-CBC" */
 757,	/* "CAMELLIA-128-CFB" */
 760,	/* "CAMELLIA-128-CFB1" */
@@ -3701,6 +3703,7 @@ static const unsigned int ln_objs[NUM_LN]={
 703,	/* "c2tnb431r1" */
 881,	/* "cACertificate" */
 483,	/* "cNAMERecord" */
+958,	/* "caesar" */
 751,	/* "camellia-128-cbc" */
 757,	/* "camellia-128-cfb" */
 760,	/* "camellia-128-cfb1" */
