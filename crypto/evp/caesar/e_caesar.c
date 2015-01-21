@@ -50,27 +50,48 @@ static int caesar_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key, const 
   return 1;
 }
 
+#define CRYPTO_KEYBYTES 16
+#define CRYPTO_NSECBYTES 0
+#define CRYPTO_NPUBBYTES 12
+#define CRYPTO_ABYTES 16
+
 static int caesar_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned char *in, size_t in_length) {
   size_t i;
-  int out_length = -1;
+  int ret = 0;
+  int out_length = 0;
+
+  fprintf(stderr, "caesar_cipher: in_length=%d\n", in_length);
 
   if (in == out) {
     return;
   }
 
-  if (ctx->encrypt) {
-    for (i = 0; i < in_length; i++) {
-      out[i] = in[i] + 13;
+
+  if (in_length > 0) {
+    unsigned char *key = (unsigned char *)calloc(CRYPTO_KEYBYTES, sizeof(unsigned char));
+    unsigned char *nsec = (unsigned char *)calloc(CRYPTO_NSECBYTES, sizeof(unsigned char));
+    unsigned char *npub = (unsigned char *)calloc(CRYPTO_NPUBBYTES, sizeof(unsigned char));
+    unsigned char *ad = (unsigned char *)calloc(16, sizeof(unsigned char));
+
+    memset(key, 0, CRYPTO_KEYBYTES);
+    memset(nsec, 0, CRYPTO_NSECBYTES);
+    memset(npub, 0, CRYPTO_NPUBBYTES);
+    memset(ad, 0, 16);
+
+    if (ctx->encrypt) {
+      ret = crypto_aead_encrypt(out, &out_length, in, in_length, ad, 16, nsec, npub, key);
+    } else {
+      ret = crypto_aead_decrypt(out, &out_length, nsec, in, in_length, ad, 16, npub, key);
     }
-    out_length = in_length;
-  } else {
-    for (i = 0; i < in_length; i++) {
-      out[i] = in[i] - 13;
-    }
-    out_length = in_length;
+
+    free(key);
+    free(nsec);
+    free(npub);
+    free(ad);
   }
 
-  return out_length;
+
+  return ret == 0 ? out_length : ret;
 }
 
 static int caesar_cleanup(EVP_CIPHER_CTX *ctx) {
