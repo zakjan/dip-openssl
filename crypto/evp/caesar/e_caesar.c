@@ -21,6 +21,15 @@ struct evp_cipher_st {
 } EVP_CIPHER;
 */
 
+
+
+typedef struct {
+  unsigned char *key;
+  unsigned char *nsec;
+  unsigned char *npub;
+  unsigned char *ad;
+} EVP_CAESAR_KEY;
+
 static int caesar_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key, const unsigned char *iv, int enc);
 static int caesar_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned char *in, size_t inl);
 static int caesar_cleanup(EVP_CIPHER_CTX *ctx);
@@ -35,7 +44,7 @@ static const EVP_CIPHER caesar = {
   caesar_init_key,
   caesar_cipher,
   caesar_cleanup,
-  0,
+  sizeof(EVP_CAESAR_KEY),
   NULL,
   NULL,
   caesar_ctrl,
@@ -46,21 +55,38 @@ const EVP_CIPHER *EVP_caesar(void) {
   return &caesar;
 }
 
-static int caesar_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key, const unsigned char *iv, int enc) {
-  return 1;
-}
-
 #define CRYPTO_KEYBYTES 16
 #define CRYPTO_NSECBYTES 0
 #define CRYPTO_NPUBBYTES 12
 #define CRYPTO_ABYTES 16
 
+#define CRYPTO_ADBYTES 16
+
+static int caesar_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key, const unsigned char *iv, int enc) {
+  fprintf(stderr, "caesar_init_key\n");
+
+  EVP_CAESAR_KEY *data = (EVP_CAESAR_KEY *)ctx->cipher_data;
+
+  data->key = (unsigned char *)calloc(CRYPTO_KEYBYTES, sizeof(unsigned char));
+  data->nsec = (unsigned char *)calloc(CRYPTO_NSECBYTES, sizeof(unsigned char));
+  data->npub = (unsigned char *)calloc(CRYPTO_NPUBBYTES, sizeof(unsigned char));
+  data->ad = (unsigned char *)calloc(CRYPTO_ADBYTES, sizeof(unsigned char));
+
+  memset(data->key, 0, CRYPTO_KEYBYTES);
+  memset(data->nsec, 0, CRYPTO_NSECBYTES);
+  memset(data->npub, 0, CRYPTO_NPUBBYTES);
+  memset(data->ad, 0, CRYPTO_ADBYTES);
+
+  return 1;
+}
+
 static int caesar_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned char *in, size_t in_length) {
+  fprintf(stderr, "caesar_cipher: in_length=%d\n", in_length);
+
   size_t i;
   int ret = 0;
   int out_length = 0;
-
-  fprintf(stderr, "caesar_cipher: in_length=%d\n", in_length);
+  EVP_CAESAR_KEY *data = (EVP_CAESAR_KEY *)ctx->cipher_data;
 
   if (in == out) {
     return;
@@ -68,26 +94,11 @@ static int caesar_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned
 
 
   if (in_length > 0) {
-    unsigned char *key = (unsigned char *)calloc(CRYPTO_KEYBYTES, sizeof(unsigned char));
-    unsigned char *nsec = (unsigned char *)calloc(CRYPTO_NSECBYTES, sizeof(unsigned char));
-    unsigned char *npub = (unsigned char *)calloc(CRYPTO_NPUBBYTES, sizeof(unsigned char));
-    unsigned char *ad = (unsigned char *)calloc(16, sizeof(unsigned char));
-
-    memset(key, 0, CRYPTO_KEYBYTES);
-    memset(nsec, 0, CRYPTO_NSECBYTES);
-    memset(npub, 0, CRYPTO_NPUBBYTES);
-    memset(ad, 0, 16);
-
     if (ctx->encrypt) {
-      ret = crypto_aead_encrypt(out, &out_length, in, in_length, ad, 16, nsec, npub, key);
+      ret = crypto_aead_encrypt(out, &out_length, in, in_length, data->ad, CRYPTO_ADBYTES, data->nsec, data->npub, data->key);
     } else {
-      ret = crypto_aead_decrypt(out, &out_length, nsec, in, in_length, ad, 16, npub, key);
+      ret = crypto_aead_decrypt(out, &out_length, data->nsec, in, in_length, data->ad, CRYPTO_ADBYTES, data->npub, data->key);
     }
-
-    free(key);
-    free(nsec);
-    free(npub);
-    free(ad);
   }
 
 
@@ -95,6 +106,15 @@ static int caesar_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned
 }
 
 static int caesar_cleanup(EVP_CIPHER_CTX *ctx) {
+  fprintf(stderr, "caesar_cleanup\n");
+
+  EVP_CAESAR_KEY *data = (EVP_CAESAR_KEY *)ctx->cipher_data;
+
+  free(data->key);
+  free(data->nsec);
+  free(data->npub);
+  free(data->ad);
+
   return 1;
 }
 
