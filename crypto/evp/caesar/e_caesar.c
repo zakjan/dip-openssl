@@ -51,7 +51,7 @@ static const EVP_CIPHER caesar = {
   1,
   CRYPTO_KEYBYTES,
   0,
-  EVP_CIPH_CUSTOM_IV | EVP_CIPH_FLAG_CUSTOM_CIPHER,
+  EVP_CIPH_CUSTOM_IV | EVP_CIPH_FLAG_CUSTOM_CIPHER | EVP_CIPH_FLAG_AEAD_CIPHER,
   caesar_init_key,
   caesar_cipher,
   caesar_cleanup,

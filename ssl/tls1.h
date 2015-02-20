@@ -500,6 +500,9 @@ SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB,(void (*)(void))cb)
 # define TLS1_CK_ADH_WITH_AES_128_GCM_SHA256             0x030000A6
 # define TLS1_CK_ADH_WITH_AES_256_GCM_SHA384             0x030000A7
 
+// CAESAR
+# define TLS1_CK_DHE_RSA_WITH_CAESAR_SHA256              0x0300FF81
+
 /*
  * ECC ciphersuites from draft-ietf-tls-ecc-12.txt with changes soon to be in
  * draft 13
@@ -694,6 +697,9 @@ SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB,(void (*)(void))cb)
 # define TLS1_TXT_DH_DSS_WITH_AES_256_GCM_SHA384         "DH-DSS-AES256-GCM-SHA384"
 # define TLS1_TXT_ADH_WITH_AES_128_GCM_SHA256            "ADH-AES128-GCM-SHA256"
 # define TLS1_TXT_ADH_WITH_AES_256_GCM_SHA384            "ADH-AES256-GCM-SHA384"
+
+// CAESAR
+# define TLS1_TXT_DHE_RSA_WITH_CAESAR_SHA256             "DHE-RSA-CAESAR-SHA256"
 
 /* ECDH HMAC based ciphersuites from RFC5289 */
 

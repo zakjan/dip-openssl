@@ -335,6 +335,8 @@ static ssl_trace_tbl ssl_ciphers_tbl[] = {
     {0xC032, "TLS_ECDH_RSA_WITH_AES_256_GCM_SHA384"},
     {0xFEFE, "SSL_RSA_FIPS_WITH_DES_CBC_SHA"},
     {0xFEFF, "SSL_RSA_FIPS_WITH_3DES_EDE_CBC_SHA"},
+    // CAESAR
+    {0xFF81, "TLS_DHE_RSA_WITH_CAESAR_SHA256"},
 };
 
 /* Compression methods */
