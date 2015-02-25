@@ -1,5 +1,8 @@
 #!/usr/bin/env sh
 
+# test enc
+# doesn't work with EVP_CIPH_FLAG_AEAD_CIPHER
+
 OPENSSL_DIR=apps
 PLAINTEXT="Lorem ipsum dolor sit amet, consectetur adipiscing elit."
 KEY=$(openssl rand 16 | xxd -p)
