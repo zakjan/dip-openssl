@@ -62,7 +62,7 @@ static const EVP_CIPHER caesar = {
   NID_caesar,
   1,
   CRYPTO_KEYBYTES,
-  0,
+  CRYPTO_NPUBBYTES,
   EVP_CIPH_CUSTOM_IV | EVP_CIPH_CTRL_INIT | EVP_CIPH_FLAG_CUSTOM_CIPHER | EVP_CIPH_FLAG_AEAD_CIPHER,
   caesar_init_key,
   caesar_cipher,
@@ -96,13 +96,22 @@ static int caesar_init(EVP_CIPHER_CTX *ctx) {
 
 static int caesar_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key, const unsigned char *iv, int enc) {
 #ifdef CRYPTO_DEBUG
-  fprintf(stderr, "caesar_init_key\n");
+  fprintf(stderr, "caesar_init_key:\n");
+  fprintf(stderr, "    key=");
+  fprintf_hex(stderr, key, CRYPTO_KEYBYTES);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "    iv=");
+  fprintf_hex(stderr, iv, CRYPTO_NPUBBYTES);
+  fprintf(stderr, "\n");
 #endif
 
   EVP_CAESAR_CTX *cipher_ctx = (EVP_CAESAR_CTX *)ctx->cipher_data;
 
   cipher_ctx->key = (unsigned char *)calloc(CRYPTO_KEYBYTES, sizeof(unsigned char));
   memcpy(cipher_ctx->key, key, CRYPTO_KEYBYTES);
+
+  cipher_ctx->key = (unsigned char *)calloc(CRYPTO_NPUBBYTES, sizeof(unsigned char));
+  memcpy(cipher_ctx->npub, iv, CRYPTO_NPUBBYTES);
 
   return 1;
 }
