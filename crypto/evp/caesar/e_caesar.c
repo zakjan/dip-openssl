@@ -1,4 +1,7 @@
 #include <openssl/evp.h>
+#include "crypto_aead/crypto_aead.h"
+/// #include "crypto_aead/norx3241v1/ref/api.h"
+#include "crypto_aead/aes128gcmv1/openssl/api.h"
 
 // from crypto/evp/evp.h
 /*
@@ -23,12 +26,7 @@ struct evp_cipher_st {
 
 
 
-#define CRYPTO_KEYBYTES 16
-#define CRYPTO_NSECBYTES 0
-#define CRYPTO_NPUBBYTES 12
-#define CRYPTO_ABYTES 16
-
-#define CRYPTO_DEBUG 1
+//#define CRYPTO_DEBUG 1
 
 int fprintf_hex(FILE *stream, const unsigned char *in, size_t in_length) {
   size_t i;
@@ -37,9 +35,6 @@ int fprintf_hex(FILE *stream, const unsigned char *in, size_t in_length) {
     fprintf(stream, "%02x", in[i]);
   }
 }
-
-int crypto_aead_encrypt(unsigned char *c, unsigned long long *clen, const unsigned char *m, unsigned long long mlen, const unsigned char *ad, unsigned long long adlen, const unsigned char *nsec, const unsigned char *npub, const unsigned char *k);
-int crypto_aead_decrypt(unsigned char *m, unsigned long long *mlen, unsigned char *nsec, const unsigned char *c, unsigned long long clen, const unsigned char *ad, unsigned long long adlen, const unsigned char *npub, const unsigned char *k);
 
 typedef struct {
   const unsigned char *key;
@@ -50,6 +45,7 @@ typedef struct {
   int is_tls;
 } EVP_CAESAR_CTX;
 
+static int caesar_init(EVP_CIPHER_CTX *ctx);
 static int caesar_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key, const unsigned char *iv, int enc);
 static int caesar_set_ad(EVP_CIPHER_CTX *ctx, const unsigned char *in, size_t in_length);
 static int caesar_encrypt(unsigned char *c, unsigned long long *clen, const unsigned char *m, unsigned long long mlen, const unsigned char *ad, unsigned long long adlen, const unsigned char *nsec, const unsigned char *npub, const unsigned char *k);
@@ -63,7 +59,10 @@ static const EVP_CIPHER caesar = {
   1,
   CRYPTO_KEYBYTES,
   CRYPTO_NPUBBYTES,
-  EVP_CIPH_CUSTOM_IV | EVP_CIPH_CTRL_INIT | EVP_CIPH_FLAG_CUSTOM_CIPHER | EVP_CIPH_FLAG_AEAD_CIPHER,
+  EVP_CIPH_CUSTOM_IV | // cipher handles IV itself
+  EVP_CIPH_CTRL_INIT | // call ctrl(EVP_CTRL_INIT) on init
+  EVP_CIPH_FLAG_CUSTOM_CIPHER | // different return codes (see t1_enc.c, evp_enc.c)
+  EVP_CIPH_FLAG_AEAD_CIPHER, // call ctrl(EVP_CTRL_AEAD_TLS1_AAD) before each cipher (see t1_enc.c)
   caesar_init_key,
   caesar_cipher,
   caesar_cleanup,
@@ -85,6 +84,7 @@ static int caesar_init(EVP_CIPHER_CTX *ctx) {
 
   EVP_CAESAR_CTX *cipher_ctx = (EVP_CAESAR_CTX *)ctx->cipher_data;
 
+  cipher_ctx->key = (unsigned char *)calloc(CRYPTO_KEYBYTES, sizeof(unsigned char));
   cipher_ctx->nsec = (unsigned char *)calloc(CRYPTO_NSECBYTES, sizeof(unsigned char));
   cipher_ctx->npub = (unsigned char *)calloc(CRYPTO_NPUBBYTES, sizeof(unsigned char));
   cipher_ctx->ad = (unsigned char *)calloc(1, sizeof(unsigned char));
@@ -97,20 +97,17 @@ static int caesar_init(EVP_CIPHER_CTX *ctx) {
 static int caesar_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key, const unsigned char *iv, int enc) {
 #ifdef CRYPTO_DEBUG
   fprintf(stderr, "caesar_init_key:\n");
-  fprintf(stderr, "    key=");
+  fprintf(stderr, "  key=");
   fprintf_hex(stderr, key, CRYPTO_KEYBYTES);
   fprintf(stderr, "\n");
-  fprintf(stderr, "    iv=");
+  fprintf(stderr, "  iv=");
   fprintf_hex(stderr, iv, CRYPTO_NPUBBYTES);
   fprintf(stderr, "\n");
 #endif
 
   EVP_CAESAR_CTX *cipher_ctx = (EVP_CAESAR_CTX *)ctx->cipher_data;
 
-  cipher_ctx->key = (unsigned char *)calloc(CRYPTO_KEYBYTES, sizeof(unsigned char));
   memcpy(cipher_ctx->key, key, CRYPTO_KEYBYTES);
-
-  cipher_ctx->key = (unsigned char *)calloc(CRYPTO_NPUBBYTES, sizeof(unsigned char));
   memcpy(cipher_ctx->npub, iv, CRYPTO_NPUBBYTES);
 
   return 1;
@@ -136,64 +133,6 @@ static int caesar_set_ad(EVP_CIPHER_CTX *ctx, const unsigned char *in, size_t in
   memcpy(cipher_ctx->ad, in, in_length);
 
   return 1;
-}
-
-static int caesar_encrypt(unsigned char *c, unsigned long long *clen, const unsigned char *m, unsigned long long mlen, const unsigned char *ad, unsigned long long adlen, const unsigned char *nsec, const unsigned char *npub, const unsigned char *k) {
-#ifdef CRYPTO_DEBUG
-  fprintf(stderr, "  caesar_encrypt:\n");
-  fprintf(stderr, "    mlen=%d\n", (int)mlen);
-  fprintf(stderr, "    m=");
-  fprintf_hex(stderr, m, mlen);
-  fprintf(stderr, "\n");
-  fprintf(stderr, "    adlen=%d\n", (int)adlen);
-  fprintf(stderr, "    ad=");
-  fprintf_hex(stderr, ad, adlen);
-  fprintf(stderr, "\n");
-  fprintf(stderr, "    k=");
-  fprintf_hex(stderr, k, CRYPTO_KEYBYTES);
-  fprintf(stderr, "\n");
-#endif
-
-  int ret = crypto_aead_encrypt(c, clen, m, mlen, ad, adlen, nsec, npub, k);
-
-#ifdef CRYPTO_DEBUG
-  fprintf(stderr, "    clen=%d\n", (int)*clen);
-  fprintf(stderr, "    c=");
-  fprintf_hex(stderr, c, (int)*clen);
-  fprintf(stderr, "\n");
-  fprintf(stderr, "    ret=%d\n", ret);
-#endif
-
-  return ret;
-}
-
-int caesar_decrypt(unsigned char *m, unsigned long long *mlen, unsigned char *nsec, const unsigned char *c, unsigned long long clen, const unsigned char *ad, unsigned long long adlen, const unsigned char *npub, const unsigned char *k) {
-  #ifdef CRYPTO_DEBUG
-    fprintf(stderr, "  caesar_decrypt:\n");
-    fprintf(stderr, "    clen=%d\n", (int)clen);
-    fprintf(stderr, "    c=");
-    fprintf_hex(stderr, c, clen);
-    fprintf(stderr, "\n");
-    fprintf(stderr, "    adlen=%d\n", (int)adlen);
-    fprintf(stderr, "    ad=");
-    fprintf_hex(stderr, ad, adlen);
-    fprintf(stderr, "\n");
-    fprintf(stderr, "    k=");
-    fprintf_hex(stderr, k, CRYPTO_KEYBYTES);
-    fprintf(stderr, "\n");
-  #endif
-
-  int ret = crypto_aead_decrypt(m, mlen, nsec, c, clen, ad, adlen, npub, k);
-
-#ifdef CRYPTO_DEBUG
-  fprintf(stderr, "  mlen=%d\n", (int)*mlen);
-  fprintf(stderr, "  m=");
-  fprintf_hex(stderr, m, (int)*mlen);
-  fprintf(stderr, "\n");
-  fprintf(stderr, "  ret=%d\n", ret);
-#endif
-
-  return ret;
 }
 
 static int caesar_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned char *in, size_t in_length) {
@@ -241,6 +180,70 @@ static int caesar_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned
 #endif
 
   return ret == 0 ? out_length : ret;
+}
+
+static int caesar_encrypt(unsigned char *c, unsigned long long *clen, const unsigned char *m, unsigned long long mlen, const unsigned char *ad, unsigned long long adlen, const unsigned char *nsec, const unsigned char *npub, const unsigned char *k) {
+#ifdef CRYPTO_DEBUG
+  fprintf(stderr, "  caesar_encrypt:\n");
+  fprintf(stderr, "    mlen=%d\n", (int)mlen);
+  fprintf(stderr, "    m=");
+  fprintf_hex(stderr, m, mlen);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "    adlen=%d\n", (int)adlen);
+  fprintf(stderr, "    ad=");
+  fprintf_hex(stderr, ad, adlen);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "    npub=");
+  fprintf_hex(stderr, npub, CRYPTO_NPUBBYTES);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "    k=");
+  fprintf_hex(stderr, k, CRYPTO_KEYBYTES);
+  fprintf(stderr, "\n");
+#endif
+
+  int ret = crypto_aead_encrypt(c, clen, m, mlen, ad, adlen, nsec, npub, k);
+
+#ifdef CRYPTO_DEBUG
+  fprintf(stderr, "    clen=%d\n", (int)*clen);
+  fprintf(stderr, "    c=");
+  fprintf_hex(stderr, c, (int)*clen);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "    ret=%d\n", ret);
+#endif
+
+  return ret;
+}
+
+int caesar_decrypt(unsigned char *m, unsigned long long *mlen, unsigned char *nsec, const unsigned char *c, unsigned long long clen, const unsigned char *ad, unsigned long long adlen, const unsigned char *npub, const unsigned char *k) {
+  #ifdef CRYPTO_DEBUG
+    fprintf(stderr, "  caesar_decrypt:\n");
+    fprintf(stderr, "    clen=%d\n", (int)clen);
+    fprintf(stderr, "    c=");
+    fprintf_hex(stderr, c, clen);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "    adlen=%d\n", (int)adlen);
+    fprintf(stderr, "    ad=");
+    fprintf_hex(stderr, ad, adlen);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "    npub=");
+    fprintf_hex(stderr, npub, CRYPTO_NPUBBYTES);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "    k=");
+    fprintf_hex(stderr, k, CRYPTO_KEYBYTES);
+    fprintf(stderr, "\n");
+  #endif
+
+  int ret = crypto_aead_decrypt(m, mlen, nsec, c, clen, ad, adlen, npub, k);
+
+#ifdef CRYPTO_DEBUG
+  fprintf(stderr, "  mlen=%d\n", (int)*mlen);
+  fprintf(stderr, "  m=");
+  fprintf_hex(stderr, m, (int)*mlen);
+  fprintf(stderr, "\n");
+  fprintf(stderr, "  ret=%d\n", ret);
+#endif
+
+  return ret;
 }
 
 static int caesar_cleanup(EVP_CIPHER_CTX *ctx) {

@@ -48,3 +48,6 @@ test/srptest
 test/ssltest
 test/v3nametest
 test/wp_test
+
+/test-*.dat
+/test-*.txt
