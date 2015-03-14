@@ -326,11 +326,14 @@ int MAIN(int argc, char **argv)
     setup_engine(bio_err, engine, 0);
 #endif
 
+    // CAESAR
+    /*
     if (cipher && EVP_CIPHER_flags(cipher) & EVP_CIPH_FLAG_AEAD_CIPHER) {
         BIO_printf(bio_err,
                    "AEAD ciphers not supported by the enc utility\n");
         goto end;
     }
+    */
 
     if (cipher && (EVP_CIPHER_mode(cipher) == EVP_CIPH_XTS_MODE)) {
         BIO_printf(bio_err,

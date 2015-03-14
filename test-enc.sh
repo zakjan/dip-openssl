@@ -3,18 +3,23 @@
 # test enc
 # doesn't work with EVP_CIPH_FLAG_AEAD_CIPHER
 
-OPENSSL_DIR=apps
+ENC="apps/openssl enc -caesar"
 PLAINTEXT="Lorem ipsum dolor sit amet, consectetur adipiscing elit."
+# KEY=123456789abcdef03456789abcdef012
+# IV=00000000000000000000000000000000
 KEY=$(openssl rand 16 | xxd -p)
+IV=$(openssl rand 16 | xxd -p)
 
 
 echo "$PLAINTEXT"
+echo "key=$KEY"
+echo "iv=$IV"
 echo
-CIPHERTEXT=$(echo -n "$PLAINTEXT" | $OPENSSL_DIR/openssl enc -caesar -K $KEY | xxd -p)
+CIPHERTEXT=$(echo -n "$PLAINTEXT" | $ENC -K $KEY -iv $IV | xxd -p)
 echo
 echo "$CIPHERTEXT"
 echo
-PLAINTEXT2=$(echo -n "$CIPHERTEXT" | xxd -r -p | $OPENSSL_DIR/openssl enc -d -caesar -K $KEY)
+PLAINTEXT2=$(echo -n "$CIPHERTEXT" | xxd -r -p | $ENC -d -K $KEY -iv $IV)
 echo
 echo "$PLAINTEXT2"
 echo

@@ -226,7 +226,9 @@
 # endif
 
 # undef BUFSIZE
-# define BUFSIZE ((long)1024*8+1)
+// CAESAR
+# define BUFSIZE ((long)1024*8+17)
+// # define BUFSIZE ((long)1024*8+1)
 static volatile int run = 0;
 
 static int mr = 0;
